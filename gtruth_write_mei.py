@@ -161,8 +161,6 @@ class MainWindow(wx.ScrolledWindow):
         self.Show(True)
         self.Refresh()
 
-#    def OnScroll(self, event):
-
     def OnPaint(self, event):
         '''Called by the OS to refresh drawing.'''
         dc = wx.PaintDC(self)
