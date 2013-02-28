@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import wx
-import meicreate
+import gtruth_meicreate
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -47,8 +47,8 @@ mouse button, scroll the window and then shift-click on the box to \
 resize it.
 '''
 
-ID_LOAD_BOXES = wx.ID_HIGHEST + 1
-ID_HELP_DLG   = wx.ID_HIGHEST + 2
+ID_LOAD_BOXES       = wx.ID_HIGHEST + 1
+ID_HELP_DLG         = wx.ID_HIGHEST + 2
 ID_TOGGLE_RECT_MODE = wx.ID_HIGHEST + 3
 
 def sort_by_area(shapes):
@@ -169,36 +169,36 @@ class MainWindow(wx.ScrolledWindow):
             dc.DrawBitmap(self.bmp,0,0,True)
     
     def OnLeftDown(self, evt):
-            '''Start making a new panel on a left-click. If shift is down, edit
-            an old panel.'''
-            if self.parent.rectmode == 'BAR':
-                panels = self.barpanels
-                colour = 'RED'
-            elif self.parent.rectmode == 'STAFF':
-                panels = self.staffpanels
-                colour = 'GREEN'
-            else:
-                self.parent.GetStatusBar().SetStatusText(\
-                        "Unrecognized rectangle mode" + self.parent.rectmode)
-                self.ReleaseMouse()
-                return
-            self.CaptureMouse()
-            dc = wx.WindowDC(self)
-            self.leftdown = True 
-            if evt.ShiftDown():
-                rects = sort_by_area(panels)
-                self.curpanel = find_smallest_enclosing_rect(rects,\
-                        evt.GetPosition())
-                if self.curpanel == None:
-                    self.leftdown = False
-                else:
-                    self.x0, self.y0 = self.curpanel.GetPosition()
-            else:
-                self.x0, self.y0 = evt.GetPosition()
-                panels.append(NewPanel(self,pos=(self.x0,self.y0),\
-                        bordercolour=colour))
-                self.curpanel = panels[-1]
+        '''Start making a new panel on a left-click. If shift is down, edit
+        an old panel.'''
+        if self.parent.rectmode == 'BAR':
+            panels = self.barpanels
+            colour = 'RED'
+        elif self.parent.rectmode == 'STAFF':
+            panels = self.staffpanels
+            colour = 'GREEN'
+        else:
+            self.parent.GetStatusBar().SetStatusText(\
+                    "Unrecognized rectangle mode" + self.parent.rectmode)
             self.ReleaseMouse()
+            return
+        self.CaptureMouse()
+        dc = wx.WindowDC(self)
+        self.leftdown = True 
+        if evt.ShiftDown():
+            rects = sort_by_area(panels)
+            self.curpanel = find_smallest_enclosing_rect(rects,\
+                    evt.GetPosition())
+            if self.curpanel == None:
+                self.leftdown = False
+            else:
+                self.x0, self.y0 = self.curpanel.GetPosition()
+        else:
+            self.x0, self.y0 = evt.GetPosition()
+            panels.append(NewPanel(self,pos=(self.x0,self.y0),\
+                    bordercolour=colour))
+            self.curpanel = panels[-1]
+        self.ReleaseMouse()
 
     def OnControlClick(self, evt):
         '''Destroy the smallest rectangle beneath the mouse.'''
@@ -427,16 +427,13 @@ class MyFrame(wx.Frame):
                 bar_bb.append((idx, xtop+xoffset, ytop+yoffset,\
                         xbot+xoffset, ybot+yoffset))
                 idx = idx + 1
-            barconverter = meicreate.BarlineDataConverter(staff_bb, bar_bb,
-                    True)
-            # I don't have an sg_hint, nor image_dpi
-            # I am passing "()" and 72 respectively, I do not know of any
-            # repercussions
+            barconverter = gtruth_meicreate.GroundTruthBarlineDataConverter(\
+                    staff_bb, bar_bb, True)
             if self.scrolledwin.bmp != None:
                 width = self.scrolledwin.bmp.GetWidth()
                 height = self.scrolledwin.bmp.GetHeight()
-            barconverter.bardata_to_mei("()", str(self.curpicfilename),\
-                    width, height, 72)
+            barconverter.bardata_to_mei(str(self.curpicfilename),\
+                    width, height) # using default dpi
             barconverter.output_mei(str(fdlg.GetPath()))
             self.GetStatusBar().SetStatusText("Saved to: " + fdlg.GetPath())
 
