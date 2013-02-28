@@ -2,6 +2,7 @@
 
 import wx
 import gtruth_meicreate
+import gamera.core
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -160,6 +161,9 @@ class MainWindow(wx.ScrolledWindow):
         self.bmp = None
         self.Show(True)
         self.Refresh()
+
+    def Zoom(self, direction='IN', amount=100):
+        pass
 
     def OnPaint(self, event):
         '''Called by the OS to refresh drawing.'''
@@ -335,9 +339,12 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnHelp, id=ID_HELP_DLG)
         self.Bind(wx.EVT_MENU, self.OnRectModeTog, id=ID_TOGGLE_RECT_MODE)
         self.CreateStatusBar()
+        self.image = None
         self.bmp = None
         self.scrolledwin = MainWindow(self)
         self.curpicfilename = ''
+        # initialize gamera so it works
+        gamera.core.init_gamera()
 
     def OnRectModeTog(self, event):
         if self.rectmode == 'BAR':
@@ -374,8 +381,15 @@ class MyFrame(wx.Frame):
                 self.GetStatusBar().SetStatusText(\
                     "Must be a TIFF file.")
                 return
-            self.GetStatusBar().SetStatusText("File loaded: " + fdlg.GetPath())
-            # Do we add support for other image types?
+            # Load gamera image to run property methods later
+            self.image = gamera.core.load_image(fdlg.GetPath())
+            # get some image properties
+            # a string to print status to
+            statusstr = "File loaded: %s, resolution %d" % \
+                    (fdlg.GetPath(), self.image.resolution)
+            # print the status message
+            self.GetStatusBar().SetStatusText(statusstr)
+            # Bitmap is for wx so it can draw the image
             bmp = wx.BitmapFromImage(\
                     wx.Image(fdlg.GetPath(), wx.BITMAP_TYPE_TIF))
             self.curpicfilename = fdlg.GetFilename()
@@ -432,8 +446,14 @@ class MyFrame(wx.Frame):
             if self.scrolledwin.bmp != None:
                 width = self.scrolledwin.bmp.GetWidth()
                 height = self.scrolledwin.bmp.GetHeight()
+            if self.image == None:
+                dpi = 0 # If there's no image I don't want to crash the program,
+                        # the data should just be meaningless
+                raise Warning('No image file loaded')
+            else:
+                dpi = self.image.resolution
             barconverter.bardata_to_mei(str(self.curpicfilename),\
-                    width, height) # using default dpi
+                    width, height, dpi) 
             barconverter.output_mei(str(fdlg.GetPath()))
             self.GetStatusBar().SetStatusText("Saved to: " + fdlg.GetPath())
 
