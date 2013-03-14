@@ -60,192 +60,35 @@ ID_TOGGLE_RECT_MODE = wx.ID_HIGHEST + 3
 ID_ZOOM_IN          = wx.ID_HIGHEST + 4
 ID_ZOOM_OUT         = wx.ID_HIGHEST + 5
 
-### Moved to gtruth_sorts
-
-def sort_by_area(shapes):
+class Rect:
     '''
-    Returns the shapes sorted by increasing area
+    Represents a rectangle.
     '''
-    return sorted(shapes, key=lambda shape:shape.GetArea())
+    def __init__(self,posx,posy,szx,szy):
+        self.pos = (posx,posy)
+        self.size = (szx,szy)
 
-def find_smallest_enclosing_rect(rects, point):
-    '''
-    Finds the smallest rectange in the list of rects that encloses
-    the point. Rects must be sorted by increasing area, point is a 
-    tuple like (2,3).
-    '''
-    x, y = point
-    if(len(rects) < 1):
-        return None
-    currect = None
-    for rect in reversed(rects):
-        wx, wy = rect.GetPosition()
-        ww, wh = rect.GetSize()
-        if (x >= wx)\
-            & (y >= wy)\
-            & (x <= (wx + ww))\
-            & (y <= (wy + wh)):
-            currect = rect
-    return currect
+    def GetSize(self):
+        return self.size
 
-###
-
-### This will be replaced by Rect
-
-class NewPanel(wx.Panel,ZoomerMover):
-    '''
-    The NewPanel class represents the bounding boxes that are shown on the
-    display.
-    '''
-    def __init__(self, parent, pos, size=(0,0), bordercolour='RED'):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, pos=pos, size=size,\
-            style=  (wx.BORDER_NONE))
-
-        # store parent
-        self.parent = parent 
-
-        # initialize ZoomerMover
-        # (store original width, height and position so that we can resize
-        # acccordingly)
-        ZoomerMover.__init__(self)
-
-        if __GTRUTH_DEBUG__:
-            print "original size (%d,%d)\n" % (self.originalWidth,\
-            self.originalHeight)
-        
-        # store border color
-        self.bordercolour = bordercolour
-
-        # bind mouse events
-        self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
-        self.Bind(wx.EVT_RIGHT_DOWN, self.OnControlClick)
-        self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
-        self.Bind(wx.EVT_MOTION, self.OnMouseMove)
-
-        # bind paint function to native callback
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-
-        # no user input to panel
-        self.Enable(True)
-        # show panel
-        self.Show(True)
-        # draw panel 
-        self.Refresh()
-
-    ### Drawing methods ###
-    ### The scrolling window handles drawing now
-
-    def OnPaint(self, evt):
-        '''Called by the OS to refresh drawing. Draws the coloured border.'''
-        dc = wx.PaintDC(self)
-        posx, posy = self.GetPosition()
-        sizex, sizey = self.GetSize()
-        # draw border
-        dc.SetBrush(wx.Brush('WHITE',style=wx.BRUSHSTYLE_TRANSPARENT))
-        dc.SetPen(wx.Pen(self.bordercolour, width=3, style=wx.PENSTYLE_SOLID))
-        dc.DrawRectangle(0, 0, sizex, sizey)
-
-    ### Zooming Methods ###
-
-    def SetHeight(self, height):
-        size = self.GetSize()
-        self.SetSize((size[0], height))
-
-    def SetWidth(self, width):
-        size = self.GetSize()
-        self.SetSize((width, size[1]))
-
-    def GetHeight(self):
-        return self.GetSize()[0]
-
-    def GetWidth(self):
-        return self.GetSize()[1]
-
-    def GetZoomedPosition(self):
-        # Assumes the parent has the method CalcScrolledPosition
-        return self.parent.CalcScrolledPosition(wx.Panel.GetPosition(self))
-
-    def SetZoomedPosition(self, position):
-        # Assumes the parent has the method CalcScrolledPosition
-        wx.Panel.SetPosition(self, self.parent.CalcScrolledPosition(position))
-
-    def Zoom(self, factor=1.0):
-        '''
-        Panel should refresh after zooming.
-        '''
-        ZoomerMover.Zoom(self,factor)
-        self.Refresh()
-
-    def SetSize(self, size):
-        '''
-        The zoom size needs to be updated too when changing the size....
-        This won't actually work...
-        '''
-        wx.Panel.SetSize(self,size)
-        self.originalWidth, self.originalHeight = size
-
-    def SetPosition(self, pos):
-        '''
-        The original zoom position needs to be changed too, this also won't
-        work...
-        '''
-        wx.Panel.SetPosition(self,pos)
-        self.originalPosition = pos
-    
-    ### Properties methods ###
+    def GetPosition(self):
+        return self.pos
 
     def GetArea(self):
-        w, h = self.GetSize()
-        return w * h
+        return self.size[0] * self.size[1]
 
-    ### Event methods ###
+    def SetSize(self,size):
+        self.size = size
 
-    def OnLeftUp(self, evt):
-        x, y = self.GetPosition()
-        # offset position of event by the coordinates of the panel
-        evt.SetX(evt.GetX() + x)
-        evt.SetY(evt.GetY() + y)
-        self.GetParent().ProcessEvent(evt)
-    
-    def OnMouseMove(self, evt):
-        x, y = self.GetPosition()
-        # offset position of event by the coordinates of the panel
-        evt.SetX(evt.GetX() + x)
-        evt.SetY(evt.GetY() + y)
-        self.GetParent().ProcessEvent(evt)
+    def SetPosition(self,pos):
+        self.pos = pos
 
-    def OnLeftDown(self, evt):
-        x, y = self.GetPosition()
-        # offset position of event by the coordinates of the panel
-        evt.SetX(evt.GetX() + x)
-        evt.SetY(evt.GetY() + y)
-        self.GetParent().ProcessEvent(evt)
+    def GetBox(self):
+        '''
+        returns tuple as (posx, posy, sizex, sizey)
+        '''
+        return (self.pos[0], self.pos[1], self.size[0], self.size[1])
 
-    def OnControlClick(self, evt):
-        x, y = self.GetPosition()
-        # offset position of event by the coordinates of the panel
-        evt.SetX(evt.GetX() + x)
-        evt.SetY(evt.GetY() + y)
-        self.GetParent().ProcessEvent(evt)
-
-### This is no longer necessary, the bitmap is just a member of the scrolling
-### window
-class MyBitmap(wx.Bitmap, ZoomerMover):
-    '''
-    Subclass of wx.Bitmap that can be "zoomed".
-    '''
-    def __init__(self, name, type):
-        wx.Bitmap.__init__(self, name, type)
-        # store original width and height so that we can resize acccordingly
-        ZoomerMover.__init__(self)
-
-    def SetZoomedPosition(self, *args, **kwargs):
-        raise NotImplementedError('The position of MyBitmap cannot be set')
-
-    def GetZoomedPosition(self, *args, **kwargs):
-        raise NotImplementedError('The position of MyBitmap cannot be got')
-
-### This remains unchanged
 class MyApp(wx.App):
     '''
     The main app that contains all of the child windows.
@@ -281,128 +124,140 @@ class MainWindow(wx.ScrolledWindow):
         self.Bind(wx.EVT_MOTION, self.OnMouseMove)
         self.Bind(wx.EVT_RIGHT_DOWN, self.OnControlClick)
 
-        # for storing the state of the mouse button
-        self.leftdown = False
-
-        ### clearer names for these are:
-        ### self.leftdownorigx
-        ### self.leftdownorigy
-        self.x0 = 0
-        self.y0 = 0
-
         # List of panels bounding the bars
         self.barpanels = []
 
         # List of panels bounding the staves
         self.staffpanels = [] 
 
-        # The panel we are currently resizing
-        self.curpanel = None 
-
         # Initially no background image
         self.bmp = None
 
-        # Show and draw the canvas
+        # for zooming, start at original size
+        self.userscale = (1.0,1.0)
+        
+        # the panel we are currently resizing
+        self.curpanel = None
+
+        # for storing the state of the mouse button
+        self.leftdown = False
+
+        # The point at which we first clicked with the left mouse button
+        # during a drawing or resizing
+        # We store this so we can draw boxes whose sizes are relative to
+        # the first position clicked on
+        self.leftdownorigx = 0
+        self.leftdownorigy = 0
+
         self.Show(True)
         self.Refresh()
 
-    def UpdateSizeFromBmp(self):
-        if self.bmp == None:
-            return
-        self.maxWidth = self.bmp.GetWidth()
-        self.maxHeight= self.bmp.GetHeight()
-        self.SetVirtualSize((self.maxWidth, self.maxHeight))
-
-    def OnPaint(self, event):
-        '''
-        Called by the OS to refresh drawing.
-        '''
-        ### will now set userscale for zooming
-        ### will go through panels and draw them all
+    def OnPaint(self, evt):
         dc = wx.PaintDC(self)
         self.PrepareDC(dc)
+        dc.SetUserScale(*self.userscale)
         if self.bmp != None:
-            dc.DrawBitmap(self.bmp,0,0,True)
+            dc.DrawBitmap(self.bmp, 0, 0, True)
+        for p in self.barpanels:
+            dc.SetBrush(wx.Brush('WHITE',\
+                    style=wx.BRUSHSTYLE_TRANSPARENT))
+            dc.SetPen(wx.Pen('RED',\
+                    width=3, style=wx.PENSTYLE_SOLID))
+            dc.DrawRectangle(*p.GetBox())
+        for p in self.staffpanels:
+            dc.SetBrush(wx.Brush('WHITE',\
+                    style=wx.BRUSHSTYLE_TRANSPARENT))
+            dc.SetPen(wx.Pen('GREEN',\
+                    width=3, style=wx.PENSTYLE_SOLID))
+            dc.DrawRectangle(*p.GetBox())
 
-    ### in sw-canvas-functions.py this function doesn't exist and userscale is
-    ### adjusted by parent window instance
-    ### this could be made into a function for adjusting the parent window
-    ### ie. def Zoom(factor): self.userscale *= factor
     def Zoom(self, factor):
         '''
         Scales the bitmap and panels according to zoom
         '''
-        # if the mouse button is down, do not zoom because this can screw up
-        # drawing
-        if self.leftdown:
-            return
-
-        if self.bmp != None:
-            self.bmp.Zoom(factor)
-
-        for p in self.staffpanels:
-            p.Zoom(factor)
-            if __GTRUTH_DEBUG__:
-                posx, posy = p.GetPosition()
-                szx, szy    = p.GetSize()
-                sys.stderr.write("Staff panel position (%d,%d), size (%d,%d)\n"\
-                        % (posx,posy,szx,szy))
-
-        for p in self.barpanels:
-            p.Zoom(factor)
-            if __GTRUTH_DEBUG__:
-                posx, posy = p.GetPosition()
-                szx, szy    = p.GetSize()
-                sys.stderr.write("Bar panel position (%d,%d), size (%d,%d)\n"\
-                        % (posx,posy,szx,szy))
-
-        self.UpdateSizeFromBmp()
+        if factor < 0:
+            raise ValueError
+        usx, usy = self.userscale
+        self.userscale = (usx * factor, usy * factor)
         self.Refresh()
 
-    ### can be mostly replaced by that of sw-canvas-funtions.py
-    ### sw-canvas-funtions.py does not recognize panels of different types
-    ### though
     def OnLeftDown(self, evt):
         '''
-        Start making a new panel on a left-click. If shift is down, edit
-        an old panel.
+        Start drawing a rectangle.
+        If shift is down, edit an old panel.
         '''
 
-        if self.parent.rectmode == 'BAR':
-            panels = self.barpanels
-            colour = 'RED'
-        elif self.parent.rectmode == 'STAFF':
-            panels = self.staffpanels
-            colour = 'GREEN'
-        else:
-            self.parent.GetStatusBar().SetStatusText(\
-                    "Unrecognized rectangle mode" + self.parent.rectmode)
-            self.ReleaseMouse()
-            return
-        self.CaptureMouse()
-        dc = wx.WindowDC(self)
-        self.leftdown = True 
-        if evt.ShiftDown():
-            rects = sort_by_area(panels)
-            self.curpanel = find_smallest_enclosing_rect(rects,\
-                    evt.GetPosition())
-            if self.curpanel == None:
-                self.leftdown = False
-            else:
-                self.x0, self.y0 = self.curpanel.GetPosition()
-        else:
-            self.x0, self.y0 = evt.GetPosition()
-            panels.append(NewPanel(self,pos=(self.x0,self.y0),\
-                    bordercolour=colour))
-            self.curpanel = panels[-1]
-        self.ReleaseMouse()
+        if self.leftdown ==  False:
 
-    ### can be mostly replaced by that of sw-canvas-funtions.py
-    ### sw-canvas-funtions.py does not recognize panels of different types
+            if self.parent.rectmode == 'BAR':
+                panels = self.barpanels
+            elif self.parent.rectmode == 'STAFF':
+                panels = self.staffpanels
+            else:
+                self.GetStatusBar().SetStatusText(\
+                        "Unrecognized rectangle mode " + self.parent.rectmode)
+                self.ReleaseMouse()
+                return
+
+            self.CaptureMouse()
+
+            evtx, evty = evt.GetPosition()
+
+            scrolledevtx, scrolledevty = \
+                self.CalcScrolledPosition(evt.GetPosition())
+
+            unscrolledevtx, unscrolledevty = \
+                self.CalcUnscrolledPosition(evt.GetPosition())
+
+            sys.stderr.write("Event position: (%d,%d)\n" % (evtx,evty)
+                    + "\tScrolled Position(%d,%d)\n" % \
+                            (scrolledevtx,scrolledevty)
+                    + "\tUnscrolled Position(%d,%d)\n" % \
+                            (unscrolledevtx,unscrolledevty))
+
+            vsx, vsy = self.GetViewStart()
+
+            spux, spuy = self.GetScrollPixelsPerUnit()
+            sys.stderr.write("View Start: (%d,%d)\n"%\
+                    (vsx * spux, vsy * spuy))
+
+            self.leftdown = True 
+
+            if evt.ShiftDown():
+
+                rects = sort_by_area(panels)
+
+                self.curpanel = find_smallest_enclosing_rect(rects,\
+                        (unscrolledevtx/self.userscale[0],\
+                        unscrolledevty/self.userscale[1]))
+
+                if self.curpanel == None:
+                    self.leftdown = False
+                    self.ReleaseMouse()
+                    return
+
+                self.leftdownorigx, self.leftdownorigy =\
+                        self.curpanel.GetPosition()
+
+            else:
+
+                self.leftdownorigx, self.leftdownorigy =\
+                         (unscrolledevtx/self.userscale[0],\
+                            unscrolledevty/self.userscale[1])
+
+                panels.append(Rect(self.leftdownorigx,\
+                        self.leftdownorigy,0,0))
+
+                self.curpanel = panels[-1]
+
+            self.Refresh()
+            self.ReleaseMouse()
+
     def OnControlClick(self, evt):
         '''
         Destroy the smallest rectangle beneath the mouse.
         '''
+
         if self.parent.rectmode == 'BAR':
             panels = self.barpanels
         elif self.parent.rectmode == 'STAFF':
@@ -411,91 +266,112 @@ class MainWindow(wx.ScrolledWindow):
             self.parent.GetStatusBar().SetStatusText(\
                     "Unrecognized rectangle mode " + self.parent.rectmode)
             return
+
         self.CaptureMouse()
+
+        unscrolledevtx, unscrolledevty = \
+            self.CalcUnscrolledPosition(evt.GetPosition())
+
+        x0, y0 = (unscrolledevtx/self.userscale[0],\
+                        unscrolledevty/self.userscale[1])
+
         rects = sort_by_area(panels)
-        rect = find_smallest_enclosing_rect(rects, evt.GetPosition())
+
+        rect = find_smallest_enclosing_rect(rects, (x0,y0))
+
         if rect == None:
-            self.parent.GetStatusBar().SetStatusText(\
-                    "Nothing beneath mouse at " + str(evt.GetPosition()))
-            self.ReleaseMouse()
+            self.CaptureMouse()
             return
-        rect.SetBackgroundColour(wx.Colour(0,0,255))
-        dc = wx.WindowDC(self)
-        self.parent.GetStatusBar().SetStatusText(\
-            "Position of Click " + str(evt.GetPosition()))
-        self.parent.GetStatusBar().SetStatusText(\
-            "Position of rectangle " + str(rect.GetPosition()))
+
         panels.remove(rect)
-        rect.Destroy()
+
+        del(rect)
+
+        self.Refresh()
         self.ReleaseMouse()
 
-    ### can be mostly replaced by that of sw-canvas-funtions.py
     def OnMouseMove(self, evt):
-        '''Resize the rectange as we're drawing it, if we're drawing it.'''
-        if self.leftdown == True:
-            if self.parent.rectmode == 'BAR':
-                panels = self.barpanels
-            elif self.parent.rectmode == 'STAFF':
-                panels = self.staffpanels
-            else:
-                self.parent.GetStatusBar().SetStatusText(\
-                    "Unrecognized rectangle mode" + self.parent.rectmode)
-                self.ReleaseMouse()
-                return
-            self.CaptureMouse()
-            dc = wx.WindowDC(self)
-            x1, y1 = evt.GetPosition()
-            # Some logic to handle all start and end drawing motions
-            if x1 > self.x0:
-                if y1 > self.y0:
-                    pos = (self.x0, self.y0)
-                    size = (x1 - self.x0, y1 - self.y0)
-                else:
-                    pos = (self.x0, y1)
-                    size = (x1 - self.x0, self.y0 - y1)
-            else:
-                if y1 > self.y0:
-                    pos = (x1,self.y0)
-                    size = (self.x0-x1,y1-self.y0)
-                else:
-                    pos = (x1, y1)
-                    size = (self.x0 - x1, self.y0 - y1)
-            if(len(panels) > 0):
-                self.curpanel.SetSize(size)
-                self.curpanel.SetPosition(pos)
-                self.curpanel.Show(True)
-            self.parent.GetStatusBar().SetStatusText(\
-                    "mouse moved to " + str((x1,y1)))
-            self.ReleaseMouse()
+        '''
+        Resize the rectange as we're drawing it, if we're drawing it.
+        '''
+        if (self.leftdown == True) & (self.curpanel != None):
 
-    
-    ### can be mostly replaced by that of sw-canvas-funtions.py
-    def OnLeftUp(self, evt):
-        '''When left mouse button released, you have a box.'''
-        if self.leftdown == True:
             self.CaptureMouse()
-            dc = wx.WindowDC(self)
-            x1, y1 = evt.GetPosition()
-            # The same drawing logic.
-            if x1 > self.x0:
-                if y1 > self.y0:
-                    pos = (self.x0, self.y0)
-                    size = (x1 - self.x0, y1 - self.y0)
+
+            unscrolledevtx, unscrolledevty = \
+                self.CalcUnscrolledPosition(evt.GetPosition())
+
+            x0, y0 = (unscrolledevtx/self.userscale[0],\
+                        unscrolledevty/self.userscale[1])
+
+            # Some logic to handle all start and end drawing motions
+            if x0 > self.leftdownorigx:
+                if y0 > self.leftdownorigy:
+                    pos = (self.leftdownorigx, self.leftdownorigy)
+                    size = (x0 - self.leftdownorigx,\
+                            y0 - self.leftdownorigy)
                 else:
-                    pos = (self.x0, y1)
-                    size = (x1 - self.x0, self.y0 - y1)
+                    pos = (self.leftdownorigx, y0)
+                    size = (x0 - self.leftdownorigx,
+                            self.leftdownorigy - y0)
             else:
-                if y1 > self.y0:
-                    pos = (x1,self.y0)
-                    size = (self.x0-x1,y1-self.y0)
+                if y0 > self.leftdownorigy:
+                    pos = (x0,self.leftdownorigy)
+                    size = (self.leftdownorigx - x0,\
+                            y0 - self.leftdownorigy)
                 else:
-                    pos = (x1, y1)
-                    size = (self.x0 - x1, self.y0 - y1)
-            self.parent.GetStatusBar().SetStatusText(\
-                    "mouse up at " + str((x1,y1)))
-            self.leftdown = False
+                    pos = (x0, y0)
+                    size = (self.leftdownorigx - x0,\
+                            self.leftdownorigy - y0)
+
+            self.curpanel.SetSize(size)
+            self.curpanel.SetPosition(pos)
+
+            self.Refresh()
             self.ReleaseMouse()
-        self.curpanel = None
+    
+    def OnLeftUp(self, evt):
+        '''
+        When left mouse button released, you have a box.
+        '''
+        if (self.leftdown == True) & (self.curpanel != None):
+
+            self.CaptureMouse()
+
+            unscrolledevtx, unscrolledevty = \
+                self.CalcUnscrolledPosition(evt.GetPosition())
+
+            x0, y0 = (unscrolledevtx/self.userscale[0],\
+                        unscrolledevty/self.userscale[1])
+
+            curx, cury = self.curpanel.GetPosition()
+
+            # Some logic to handle all start and end drawing motions
+            if x0 > self.leftdownorigx:
+                if y0 > self.leftdownorigy:
+                    pos = (self.leftdownorigx, self.leftdownorigy)
+                    size = (x0 - self.leftdownorigx,\
+                            y0 - self.leftdownorigy)
+                else:
+                    pos = (self.leftdownorigx, y0)
+                    size = (x0 - self.leftdownorigx,
+                            self.leftdownorigy - y0)
+            else:
+                if y0 > self.leftdownorigy:
+                    pos = (x0,self.leftdownorigy)
+                    size = (self.leftdownorigx - x0,\
+                            y0 - self.leftdownorigy)
+                else:
+                    pos = (x0, y0)
+                    size = (self.leftdownorigx - x0,\
+                            self.leftdownorigy - y0)
+
+            self.leftdown = False
+            self.curpanel.SetSize(size)
+            self.curpanel.SetPosition(pos)
+            self.curpanel = None
+            self.Refresh()
+            self.ReleaseMouse()
     
 class MyFrame(wx.Frame):
     '''All the standard application stuff is dealt with here like the file
@@ -576,9 +452,6 @@ class MyFrame(wx.Frame):
         # show staus messages
         self.CreateStatusBar()
 
-        # do we need this?
-        self.bmp = None
-
         # name of currently open picture file
         self.curpicfilename = ''
 
@@ -593,14 +466,11 @@ class MyFrame(wx.Frame):
             # by a factor)
             print 'Cannot zoom beyond limit.'
 
-    ### need to be changed to work with userscale
     def OnZoomIn(self, evt):
-        self.zoomfactor = self.zoomfactor * 1.1
-        self.Zoom(self.zoomfactor)
+        self.Zoom(1.1)
 
     def OnZoomOut(self, evt):
-        self.zoomfactor = self.zoomfactor * 0.9
-        self.Zoom(self.zoomfactor)
+        self.Zoom(0.9)
     ###
 
     def OnRectModeTog(self, event):
@@ -641,7 +511,7 @@ class MyFrame(wx.Frame):
             self.GetStatusBar().SetStatusText("File loaded: " + fdlg.GetPath())
             # Do we add support for other image types?
             ### we don't need to use MyBitmap anymore
-            bmp = MyBitmap(fdlg.GetPath(), wx.BITMAP_TYPE_TIF)
+            bmp = wx.Bitmap(fdlg.GetPath(), wx.BITMAP_TYPE_TIF)
             self.curpicfilename = fdlg.GetFilename()
             self.scrolledwin.maxWidth = bmp.GetWidth()
             self.scrolledwin.maxHeight = bmp.GetHeight()
@@ -658,11 +528,15 @@ class MyFrame(wx.Frame):
 
     ### Must be made to work with Rect instead
     def OnSave(self, event):
+
         fdlg = wx.FileDialog(self,\
                 style = (wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT))
+
         # Suggest a filename based on the image name
         fdlg.SetFilename(self.curpicfilename + "_boxes.mei")
+
         xoffset, yoffset = self.scrolledwin.CalcUnscrolledPosition(0,0)
+
         if fdlg.ShowModal() == wx.ID_OK:
             # Prepare arrays of the bar bounding boxes and the staff bounding
             # boxes
@@ -671,35 +545,55 @@ class MyFrame(wx.Frame):
             # as a list of lists, the list contiains:
             # [staffnumber, topcorner x, topcorner y, bottom corner x, bottom
             # corner y]
+
             staff_bb = []
+
             idx = 1 # TODO: Maybe we have to number the boxes differently
             for rect in self.scrolledwin.staffpanels:
+
                 xtop, ytop = rect.GetPosition()
+
                 xbot, ybot = rect.GetSize()
-                staff_bb.append([idx, xtop+xoffset, ytop+yoffset,\
-                        xbot+xoffset, ybot+yoffset])
+
+                staff_bb.append([idx, xtop, ytop,\
+                        xbot, ybot])
+
                 idx = idx + 1
+
             # bar bounding boxes
             # according to a print out of the data in meicreate these are given
             # as a list of tuples, the list contiains:
             # (staffnumber, topcorner x, topcorner y, bottom corner x, bottom
             # corner y)
             bar_bb = []
+
             idx = 1 # TODO: Maybe we have to number the boxes differently
+
             for rect in self.scrolledwin.barpanels:
+
                 xtop, ytop = rect.GetPosition()
+                
                 xbot, ybot = rect.GetSize()
-                bar_bb.append((idx, xtop+xoffset, ytop+yoffset,\
-                        xbot+xoffset, ybot+yoffset))
+
+                bar_bb.append((idx, xtop, ytop,\
+                        xbot, ybot))
+
                 idx = idx + 1
+
             barconverter = gtruth_meicreate.GroundTruthBarlineDataConverter(\
                     staff_bb, bar_bb, True)
+
             if self.scrolledwin.bmp != None:
+
                 width = self.scrolledwin.bmp.GetWidth()
+
                 height = self.scrolledwin.bmp.GetHeight()
+
             barconverter.bardata_to_mei(str(self.curpicfilename),\
                     width, height) # using default dpi
+
             barconverter.output_mei(str(fdlg.GetPath()))
+
             self.GetStatusBar().SetStatusText("Saved to: " + fdlg.GetPath())
 
     def OnLoadRects(self, event):
@@ -734,7 +628,7 @@ class MyFrame(wx.Frame):
             return
         while len(panels) > 0:
             rect = panels.pop()
-            rect.Destroy()
+            del(rect)
 
 app = MyApp()
 app.MainLoop()

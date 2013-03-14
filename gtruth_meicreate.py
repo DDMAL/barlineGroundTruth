@@ -20,6 +20,7 @@ from pymei import MeiDocument, MeiElement, XmlExport
 class GroundTruthBarlineDataConverter:
     '''
     Convert the stored measures of the Ground Truth System to MEI.
+    TODO: Only considers barpanels, not staffpanels
     '''
 
     def __init__(self, staffbb, barbb, verbose=False):
