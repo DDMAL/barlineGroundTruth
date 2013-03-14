@@ -80,6 +80,7 @@ class MyScrollingWindow(wx.ScrolledWindow):
                     "barlineGroundTruth/study/images/Chord_1000_random.tiff",\
                     wx.BITMAP_TYPE_TIF)
 
+        # for zooming, start at original size
         self.userscale = (1.0,1.0)
 
         # The panel we are currently resizing
@@ -112,6 +113,10 @@ class MyScrollingWindow(wx.ScrolledWindow):
             dc.DrawRectangle(*p.GetBox())
 
     def OnLeftDown(self, evt):
+        '''
+        Start drawing a rectangle.
+        If shift is down, edit an old panel.
+        '''
 
         if self.leftdown ==  False:
 
@@ -291,8 +296,10 @@ class MyFrame(wx.Frame):
 
         # create a file menu
         filemenu = wx.Menu()
+
         # Entry to exit program
         filemenu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Exit the example")
+
         # entries for zooming in and out
         filemenu.Append(ID_ZOOM_IN, "Zoom In\tAlt-+",\
                 "Zoom in the window")
