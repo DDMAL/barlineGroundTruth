@@ -20,6 +20,7 @@ from pymei import MeiDocument, MeiElement, XmlExport
 class GroundTruthBarlineDataConverter:
     '''
     Convert the stored measures of the Ground Truth System to MEI.
+    TODO: Only considers barpanels, not staffpanels
     '''
 
     def __init__(self, staffbb, barbb, verbose=False):
@@ -188,8 +189,7 @@ class GroundTruthBarlineDataConverter:
 
         return mei_head
 
-    def _create_graphic(self, image_path, image_width, image_height,\
-            image_resolution):
+    def _create_graphic(self, image_path, image_width, image_height, image_dpi):
         '''
         Create a graphic element.
         '''
@@ -198,7 +198,7 @@ class GroundTruthBarlineDataConverter:
         graphic.addAttribute('height', str(image_height))
         graphic.addAttribute('width', str(image_width))
         graphic.addAttribute('target', image_path)
-        graphic.addAttribute('resolution', str(image_resolution))
+        graphic.addAttribute('resolution', str(image_dpi))
         graphic.addAttribute('unit', 'px')
 
         return graphic

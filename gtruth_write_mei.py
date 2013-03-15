@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import wx
+import sys
 import gtruth_meicreate
 import gamera.core
+from   gtruth_zoom import ZoomerMover
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -48,18 +50,28 @@ mouse button, scroll the window and then shift-click on the box to \
 resize it.
 '''
 
+# for debugging
+__GTRUTH_DEBUG__ = True
+
+# custom event ids
 ID_LOAD_BOXES       = wx.ID_HIGHEST + 1
 ID_HELP_DLG         = wx.ID_HIGHEST + 2
 ID_TOGGLE_RECT_MODE = wx.ID_HIGHEST + 3
+ID_ZOOM_IN          = wx.ID_HIGHEST + 4
+ID_ZOOM_OUT         = wx.ID_HIGHEST + 5
 
 def sort_by_area(shapes):
-    '''Returns the shapes sorted by increasing area'''
+    '''
+    Returns the shapes sorted by increasing area
+    '''
     return sorted(shapes, key=lambda shape:shape.GetArea())
 
 def find_smallest_enclosing_rect(rects, point):
-    '''Finds the smallest rectange in the list of rects that encloses
+    '''
+    Finds the smallest rectange in the list of rects that encloses
     the point. Rects must be sorted by increasing area, point is a 
-    tuple like (2,3).'''
+    tuple like (2,3).
+    '''
     x, y = point
     if(len(rects) < 1):
         return None
@@ -74,7 +86,7 @@ def find_smallest_enclosing_rect(rects, point):
             currect = rect
     return currect
 
-class NewPanel(wx.Panel):
+class NewPanel(wx.Panel,ZoomerMover):
     '''
     The NewPanel class represents the bounding boxes that are shown on the
     display.
@@ -82,99 +94,259 @@ class NewPanel(wx.Panel):
     def __init__(self, parent, pos, size=(0,0), bordercolour='RED'):
         wx.Panel.__init__(self, parent, wx.ID_ANY, pos=pos, size=size,\
             style=  (wx.BORDER_NONE))
+
+        # store parent
+        self.parent = parent 
+
+        # initialize ZoomerMover
+        # (store original width, height and position so that we can resize
+        # acccordingly)
+        ZoomerMover.__init__(self)
+
+        if __GTRUTH_DEBUG__:
+            print "original size (%d,%d)\n" % (self.originalWidth,\
+            self.originalHeight)
+        
+        # store border color
         self.bordercolour = bordercolour
-        self.Enable(False)
+
+        # bind mouse events
         self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
         self.Bind(wx.EVT_RIGHT_DOWN, self.OnControlClick)
         self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
         self.Bind(wx.EVT_MOTION, self.OnMouseMove)
+
+        # bind paint function to native callback
         self.Bind(wx.EVT_PAINT, self.OnPaint)
+
+        # no user input to panel
+        self.Enable(True)
+        # show panel
         self.Show(True)
+        # draw panel 
         self.Refresh()
+
+    ### Drawing methods ###
 
     def OnPaint(self, evt):
         '''Called by the OS to refresh drawing. Draws the coloured border.'''
         dc = wx.PaintDC(self)
         posx, posy = self.GetPosition()
         sizex, sizey = self.GetSize()
+        # draw border
         dc.SetBrush(wx.Brush('WHITE',style=wx.BRUSHSTYLE_TRANSPARENT))
         dc.SetPen(wx.Pen(self.bordercolour, width=3, style=wx.PENSTYLE_SOLID))
         dc.DrawRectangle(0, 0, sizex, sizey)
 
+    ### Zooming Methods ###
+
+    def SetHeight(self, height):
+        size = self.GetSize()
+        self.SetSize((size[0], height))
+
+    def SetWidth(self, width):
+        size = self.GetSize()
+        self.SetSize((width, size[1]))
+
+    def GetHeight(self):
+        return self.GetSize()[0]
+
+    def GetWidth(self):
+        return self.GetSize()[1]
+
+    def GetZoomedPosition(self):
+        # Assumes the parent has the method CalcScrolledPosition
+        return self.parent.CalcScrolledPosition(wx.Panel.GetPosition(self))
+
+    def SetZoomedPosition(self, position):
+        # Assumes the parent has the method CalcScrolledPosition
+        wx.Panel.SetPosition(self, self.parent.CalcScrolledPosition(position))
+
+    def Zoom(self, factor=1.0):
+        '''
+        Panel should refresh after zooming.
+        '''
+        ZoomerMover.Zoom(self,factor)
+        self.Refresh()
+
+    def SetSize(self, size):
+        '''
+        The zoom size needs to be updated too when changing the size....
+        This won't actually work...
+        '''
+        wx.Panel.SetSize(self,size)
+        self.originalWidth, self.originalHeight = size
+
+    def SetPosition(self, pos):
+        '''
+        The original zoom position needs to be changed too, this also won't
+        work...
+        '''
+        wx.Panel.SetPosition(self,pos)
+        self.originalPosition = pos
     
+    ### Properties methods ###
+
     def GetArea(self):
         w, h = self.GetSize()
         return w * h
 
+    ### Event methods ###
+
     def OnLeftUp(self, evt):
         x, y = self.GetPosition()
+        # offset position of event by the coordinates of the panel
         evt.SetX(evt.GetX() + x)
         evt.SetY(evt.GetY() + y)
         self.GetParent().ProcessEvent(evt)
     
     def OnMouseMove(self, evt):
         x, y = self.GetPosition()
+        # offset position of event by the coordinates of the panel
         evt.SetX(evt.GetX() + x)
         evt.SetY(evt.GetY() + y)
         self.GetParent().ProcessEvent(evt)
 
     def OnLeftDown(self, evt):
         x, y = self.GetPosition()
+        # offset position of event by the coordinates of the panel
         evt.SetX(evt.GetX() + x)
         evt.SetY(evt.GetY() + y)
         self.GetParent().ProcessEvent(evt)
 
     def OnControlClick(self, evt):
         x, y = self.GetPosition()
+        # offset position of event by the coordinates of the panel
         evt.SetX(evt.GetX() + x)
         evt.SetY(evt.GetY() + y)
         self.GetParent().ProcessEvent(evt)
 
+class MyBitmap(wx.Bitmap, ZoomerMover):
+    '''
+    Subclass of wx.Bitmap that can be "zoomed".
+    '''
+    def __init__(self, name, type):
+        wx.Bitmap.__init__(self, name, type)
+        # store original width and height so that we can resize acccordingly
+        ZoomerMover.__init__(self)
+
+    def SetZoomedPosition(self, *args, **kwargs):
+        raise NotImplementedError('The position of MyBitmap cannot be set')
+
+    def GetZoomedPosition(self, *args, **kwargs):
+        raise NotImplementedError('The position of MyBitmap cannot be got')
+
 class MyApp(wx.App):
-    '''The main app that contains all of the child windows.'''
+    '''
+    The main app that contains all of the child windows.
+    '''
     def OnInit(self):
         self.frame = MyFrame(None,"Gtruth")
         self.frame.Show(True)
         return True
 
 class MainWindow(wx.ScrolledWindow):
-    '''Displays the image and contains the NewPanel instances that form the
-    graphical display of the bouding boxes.'''
+    '''
+    Displays the image and contains the NewPanel instances that form the
+    graphical display of the bouding boxes.
+    Handles calling the zooming functions of its members to zoom uniformly.
+    '''
     def __init__(self, parent, id=-1):
         wx.ScrolledWindow.__init__(self, parent, size=(500,500))
         self.parent = parent
+
+        # background when no image loaded
         parent.SetBackgroundColour('WHITE')
+
+        # set-up scrolling
         self.SetScrollRate(20,20)
+
+        # bind paint event so canvas will be redrawn
         self.Bind(wx.EVT_PAINT, self.OnPaint)
+
+        # bind mouse events
         self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
         self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
         self.Bind(wx.EVT_MOTION, self.OnMouseMove)
         self.Bind(wx.EVT_RIGHT_DOWN, self.OnControlClick)
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
+
+        # for storing the state of the mouse button
         self.leftdown = False
+
         self.x0 = 0
         self.y0 = 0
-        self.barpanels = [] # List of panels bounding the bars
-        self.staffpanels = [] # List of panels bounding the staves
-        self.curpanel = None # The panel we are currently resizing
-        # For background image
+
+        # List of panels bounding the bars
+        self.barpanels = []
+
+        # List of panels bounding the staves
+        self.staffpanels = [] 
+
+        # The panel we are currently resizing
+        self.curpanel = None 
+
+        # Initially no background image
         self.bmp = None
+
+        # Show and draw the canvas
         self.Show(True)
         self.Refresh()
 
     def Zoom(self, direction='IN', amount=100):
         pass
 
+    def UpdateSizeFromBmp(self):
+        if self.bmp == None:
+            return
+        self.maxWidth = self.bmp.GetWidth()
+        self.maxHeight= self.bmp.GetHeight()
+        self.SetVirtualSize((self.maxWidth, self.maxHeight))
+
     def OnPaint(self, event):
-        '''Called by the OS to refresh drawing.'''
+        '''
+        Called by the OS to refresh drawing.
+        '''
         dc = wx.PaintDC(self)
         self.PrepareDC(dc)
         if self.bmp != None:
             dc.DrawBitmap(self.bmp,0,0,True)
+
+    def Zoom(self, factor):
+        '''
+        Scales the bitmap and panels according to zoom
+        '''
+        # if the mouse button is down, do not zoom because this can screw up
+        # drawing
+        if self.leftdown:
+            return
+
+        if self.bmp != None:
+            self.bmp.Zoom(factor)
+
+        for p in self.staffpanels:
+            p.Zoom(factor)
+            if __GTRUTH_DEBUG__:
+                posx, posy = p.GetPosition()
+                szx, szy    = p.GetSize()
+                sys.stderr.write("Staff panel position (%d,%d), size (%d,%d)\n"\
+                        % (posx,posy,szx,szy))
+
+        for p in self.barpanels:
+            p.Zoom(factor)
+            if __GTRUTH_DEBUG__:
+                posx, posy = p.GetPosition()
+                szx, szy    = p.GetSize()
+                sys.stderr.write("Bar panel position (%d,%d), size (%d,%d)\n"\
+                        % (posx,posy,szx,szy))
+
+        self.UpdateSizeFromBmp()
+        self.Refresh()
     
     def OnLeftDown(self, evt):
-        '''Start making a new panel on a left-click. If shift is down, edit
-        an old panel.'''
+        '''
+        Start making a new panel on a left-click. If shift is down, edit
+        an old panel.
+        '''
         if self.parent.rectmode == 'BAR':
             panels = self.barpanels
             colour = 'RED'
@@ -303,22 +475,46 @@ class MyFrame(wx.Frame):
     menu.'''
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, wx.ID_ANY, title)
+
         # 'BAR' mode can be set to set the mouse to draw rectangles for the bars
         # 'STAFF' can be set to set the mouse to draw raectangels for the staves
         self.rectmode = 'BAR' # default start in 'BAR' mode
+        
+        # Set-up menus
         filemenu = wx.Menu()
         helpmenu = wx.Menu()
+
+        # get information of program
         helpmenu.Append(wx.ID_ABOUT, "&About\tF1", "Show about dialog")
+
+        # exit program
         filemenu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Exit the example")
+        
+        # open a picture
         filemenu.Append(wx.ID_OPEN, "O&pen\tAlt-O", "Open a picture for "\
                                         +"annotating")
+
+        # clear the rectangles
         filemenu.Append(wx.ID_CLEAR, "C&lear", "Clear all rectangles")
+
+        # save the rectangle state
         filemenu.Append(wx.ID_SAVE, "S&ave\tShift-Alt-S",\
                 "Save rectangle data")
+
+        # load some rectangles (for testing usually)
         filemenu.Append(ID_LOAD_BOXES, "L&oad \tAlt-L",\
                 "Load some rectangles")
+
+        # entries for zooming in and out
+        filemenu.Append(ID_ZOOM_IN, "Zoom In\tAlt-+",\
+                "Zoom in the window")
+        filemenu.Append(ID_ZOOM_OUT, "Zoom Out\tAlt--",\
+                "Zoom out the window")
+
+        # get help on using the program
         helpmenu.Append(ID_HELP_DLG, "H&elp \tAlt-H",\
                 "How to use this program")
+
         # Directly create a wx.MenuItem because we want to change the string
         # displayed depending on the mode we are in.
         # Default is to begin in bar mode
@@ -326,10 +522,14 @@ class MyFrame(wx.Frame):
                 text="Staff mode\tAlt-M",\
                 help="Toggle the box colour and type (bar or staff)")
         filemenu.AppendItem(self.rectmodemenuitem)
+
+        # put menus in menu bar
         menubar = wx.MenuBar()
         menubar.Append(filemenu, "&File")
         menubar.Append(helpmenu, "&Help")
         self.SetMenuBar(menubar)
+
+        # bind menu methods
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnOpen, id=wx.ID_OPEN)
@@ -338,13 +538,41 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnLoadRects, id=ID_LOAD_BOXES)
         self.Bind(wx.EVT_MENU, self.OnHelp, id=ID_HELP_DLG)
         self.Bind(wx.EVT_MENU, self.OnRectModeTog, id=ID_TOGGLE_RECT_MODE)
+        # bind zoom in and zoom out methods
+        self.Bind(wx.EVT_MENU, self.OnZoomIn, id=ID_ZOOM_IN)
+        self.Bind(wx.EVT_MENU, self.OnZoomOut, id=ID_ZOOM_OUT)
+
+        # how zoomed in we are 
+        self.zoomfactor = 1.0
+
+        # show staus messages
         self.CreateStatusBar()
+
         self.image = None
-        self.bmp = None
-        self.scrolledwin = MainWindow(self)
+
+        # name of currently open picture file
         self.curpicfilename = ''
         # initialize gamera so it works
         gamera.core.init_gamera()
+
+        # child window that is the window containing all the elements
+        self.scrolledwin = MainWindow(self)
+
+    def Zoom(self, factor):
+        try:
+            self.scrolledwin.Zoom(factor)
+        except ValueError:
+            # This really shouldn't happen with "geometric" zooming (multiplying
+            # by a factor)
+            print 'Cannot zoom beyond limit.'
+
+    def OnZoomIn(self, evt):
+        self.zoomfactor = self.zoomfactor * 1.1
+        self.Zoom(self.zoomfactor)
+
+    def OnZoomOut(self, evt):
+        self.zoomfactor = self.zoomfactor * 0.9
+        self.Zoom(self.zoomfactor)
 
     def OnRectModeTog(self, event):
         if self.rectmode == 'BAR':
@@ -381,6 +609,7 @@ class MyFrame(wx.Frame):
                 self.GetStatusBar().SetStatusText(\
                     "Must be a TIFF file.")
                 return
+
             # Load gamera image to run property methods later
             self.image = gamera.core.load_image(fdlg.GetPath())
             # get some image properties
@@ -392,6 +621,7 @@ class MyFrame(wx.Frame):
             # Bitmap is for wx so it can draw the image
             bmp = wx.BitmapFromImage(\
                     wx.Image(fdlg.GetPath(), wx.BITMAP_TYPE_TIF))
+
             self.curpicfilename = fdlg.GetFilename()
             self.scrolledwin.maxWidth = bmp.GetWidth()
             self.scrolledwin.maxHeight = bmp.GetHeight()
