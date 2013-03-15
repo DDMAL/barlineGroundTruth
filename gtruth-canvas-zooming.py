@@ -5,6 +5,7 @@ import sys
 import gtruth_meicreate
 from   gtruth_zoom import ZoomerMover
 from gtruth_sorts import *
+import gamera.core
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -458,6 +459,12 @@ class MyFrame(wx.Frame):
         # child window that is the window containing all the elements
         self.scrolledwin = MainWindow(self)
 
+        # initialize gamera so it works
+        gamera.core.init_gamera()
+
+        # place to store gamera image proxy for getting dpi basically
+        self.image = None
+
     def Zoom(self, factor):
         try:
             self.scrolledwin.Zoom(factor)
@@ -501,32 +508,54 @@ class MyFrame(wx.Frame):
         self.Close()
 
     def OnOpen(self, event):
+
         fdlg = wx.FileDialog(self)
+
         if fdlg.ShowModal() == wx.ID_OK:
+
             fname = fdlg.GetFilename()
+
+            # Do we add support for other image types?
             if not fname.endswith('.tiff') and not (fname.endswith('.tif')):
                 self.GetStatusBar().SetStatusText(\
-                    "Must be a TIFF file.")
+                    "Must be a TIFF file.") 
+
                 return
-            self.GetStatusBar().SetStatusText("File loaded: " + fdlg.GetPath())
+
+            # Load gamera image to run property methods later
+            self.image = gamera.core.load_image(fdlg.GetPath())
+
+            # a string to print status to
+            statusstr = "File loaded: %s, resolution %d dpi" % \
+                    (fdlg.GetPath(), self.image.resolution)
+
             # Do we add support for other image types?
-            ### we don't need to use MyBitmap anymore
             bmp = wx.Bitmap(fdlg.GetPath(), wx.BITMAP_TYPE_TIF)
+
             self.curpicfilename = fdlg.GetFilename()
+
             self.scrolledwin.maxWidth = bmp.GetWidth()
+
             self.scrolledwin.maxHeight = bmp.GetHeight()
+
             self.scrolledwin.SetVirtualSize((self.scrolledwin.maxWidth,\
                                             self.scrolledwin.maxHeight))
             self.scrolledwin.bmp = bmp
+
             if fname.endswith('.tiff'):
+
                 self.curpicfilename = fname[:fname.rfind('.tiff')]
+
             elif fname.endswith('.tif'):
+
                 self.curpicfilename = fname[:fname.rfind('tif')]
+
             else:
+
                 self.curpicfilename = fname
+
             self.scrolledwin.Refresh()
 
-    ### Must be made to work with Rect instead
     def OnSave(self, event):
 
         fdlg = wx.FileDialog(self,\
@@ -589,8 +618,15 @@ class MyFrame(wx.Frame):
 
                 height = self.scrolledwin.bmp.GetHeight()
 
+            if self.image == None:
+                self.GetStatusBar().SetStatusText("No image file loaded, saving\
+                        aborted.")
+                return
+            else:
+                dpi = self.image.resolution
+
             barconverter.bardata_to_mei(str(self.curpicfilename),\
-                    width, height) # using default dpi
+                    width, height, dpi) # using default dpi
 
             barconverter.output_mei(str(fdlg.GetPath()))
 
