@@ -5,7 +5,13 @@ import sys
 import gtruth_meicreate
 from   gtruth_zoom import ZoomerMover
 from gtruth_sorts import *
+
+# For image preprocessing
 import gamera.core
+from gamera.toolkits import musicstaves, lyric_extraction, border_removal
+from gamera.classify import BoundingBoxGroupingFunction, ShapedGroupingFunction
+from gamera import classify
+from gamera import knn
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -525,22 +531,19 @@ class MyFrame(wx.Frame):
             # Load gamera image to run property methods later
             self.image = gamera.core.load_image(fdlg.GetPath())
 
-            # a string to print status to
-            statusstr = "File loaded: %s, resolution %d dpi" % \
-                    (fdlg.GetPath(), self.image.resolution)
+            # make image greyscale
+            self.image.to_greyscale()
 
-            # Do we add support for other image types?
-            bmp = wx.Bitmap(fdlg.GetPath(), wx.BITMAP_TYPE_TIF)
+            # binarize image
+            self.image.to_onebit()
 
-            self.curpicfilename = fdlg.GetFilename()
+            # correct the rotation of the image
+            self.image.correct_rotation(0)
 
-            self.scrolledwin.maxWidth = bmp.GetWidth()
+            # TODO: border removal could happen here too
 
-            self.scrolledwin.maxHeight = bmp.GetHeight()
-
-            self.scrolledwin.SetVirtualSize((self.scrolledwin.maxWidth,\
-                                            self.scrolledwin.maxHeight))
-            self.scrolledwin.bmp = bmp
+            # get an image path that doesn't end in .tiff or .tif
+            fname = fdlg.GetPath()
 
             if fname.endswith('.tiff'):
 
@@ -553,6 +556,28 @@ class MyFrame(wx.Frame):
             else:
 
                 self.curpicfilename = fname
+
+            # path to preprocessed image version
+            ppimagepath = self.curpicfilename + '_preprocessed.tiff'
+
+            self.image.save_tiff(ppimagepath)
+
+            # Load the preprocessed image's pixels
+            bmp = wx.Bitmap(ppimagepath, wx.BITMAP_TYPE_TIF)
+
+            # a string to print status to
+            statusstr = "File loaded: %s, resolution %d dpi" % \
+                    (ppimagepath, self.image.resolution)
+
+            self.curpicfilename = fdlg.GetFilename()
+
+            self.scrolledwin.maxWidth = bmp.GetWidth()
+
+            self.scrolledwin.maxHeight = bmp.GetHeight()
+
+            self.scrolledwin.SetVirtualSize((self.scrolledwin.maxWidth,\
+                                            self.scrolledwin.maxHeight))
+            self.scrolledwin.bmp = bmp
 
             self.scrolledwin.Refresh()
 
