@@ -13,6 +13,9 @@ from gamera.classify import BoundingBoxGroupingFunction, ShapedGroupingFunction
 from gamera import classify
 from gamera import knn
 
+# For loading meifiles
+from pymei import MeiDocument, MeiElement, XmlImport
+
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
 
@@ -66,6 +69,8 @@ ID_HELP_DLG         = wx.ID_HIGHEST + 2
 ID_TOGGLE_RECT_MODE = wx.ID_HIGHEST + 3
 ID_ZOOM_IN          = wx.ID_HIGHEST + 4
 ID_ZOOM_OUT         = wx.ID_HIGHEST + 5
+ID_MINBOX_INC       = wx.ID_HIGHEST + 6
+ID_MINBOX_DEC       = wx.ID_HIGHEST + 7
 
 class Rect:
     '''
@@ -155,6 +160,11 @@ class MainWindow(wx.ScrolledWindow):
         # the first position clicked on
         self.leftdownorigx = 0
         self.leftdownorigy = 0
+
+        # To prevent the user from making minature boxes that cannot be found to
+        # be deleted we impose a minimum box size. If this turns out to be
+        # bothersome, the user may increase or decrease the minimum box size
+        self.minboxsize = 20 # the size of the x and y dimensions
 
         self.Show(True)
         self.Refresh()
@@ -287,7 +297,7 @@ class MainWindow(wx.ScrolledWindow):
         rect = find_smallest_enclosing_rect(rects, (x0,y0))
 
         if rect == None:
-            self.CaptureMouse()
+            self.ReleaseMouse()
             return
 
         panels.remove(rect)
@@ -331,7 +341,13 @@ class MainWindow(wx.ScrolledWindow):
                     size = (self.leftdownorigx - x0,\
                             self.leftdownorigy - y0)
 
-            self.curpanel.SetSize(size)
+            # set size conditional on the minimum box size
+            sizex, sizey = size
+            if (sizex < self.minboxsize) | (sizey < self.minboxsize):
+                self.curpanel.SetSize((self.minboxsize,self.minboxsize))
+            else:
+                self.curpanel.SetSize(size)
+
             self.curpanel.SetPosition(pos)
 
             self.Refresh()
@@ -374,7 +390,14 @@ class MainWindow(wx.ScrolledWindow):
                             self.leftdownorigy - y0)
 
             self.leftdown = False
-            self.curpanel.SetSize(size)
+            
+            # set size conditional on the minimum allowed size
+            sizex, sizey = size
+            if (sizex < self.minboxsize) | (sizey < self.minboxsize):
+                self.curpanel.SetSize((self.minboxsize,self.minboxsize))
+            else:
+                self.curpanel.SetSize(size)
+
             self.curpanel.SetPosition(pos)
             self.curpanel = None
             self.Refresh()
@@ -422,6 +445,12 @@ class MyFrame(wx.Frame):
         filemenu.Append(ID_ZOOM_OUT, "Zoom Out\tAlt--",\
                 "Zoom out the window")
 
+        # entries for increasing and decreasing the minimum box size
+        filemenu.Append(ID_MINBOX_INC, "Increase minimum\tAlt->",\
+                "Increase minimum box size")
+        filemenu.Append(ID_MINBOX_DEC, "Decrease minimum\tAlt-<",\
+                "Decrease minimum box size")
+
         # get help on using the program
         helpmenu.Append(ID_HELP_DLG, "H&elp \tAlt-H",\
                 "How to use this program")
@@ -449,9 +478,14 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnLoadRects, id=ID_LOAD_BOXES)
         self.Bind(wx.EVT_MENU, self.OnHelp, id=ID_HELP_DLG)
         self.Bind(wx.EVT_MENU, self.OnRectModeTog, id=ID_TOGGLE_RECT_MODE)
+
         # bind zoom in and zoom out methods
         self.Bind(wx.EVT_MENU, self.OnZoomIn, id=ID_ZOOM_IN)
         self.Bind(wx.EVT_MENU, self.OnZoomOut, id=ID_ZOOM_OUT)
+
+        # bind minbox inc and dec methods
+        self.Bind(wx.EVT_MENU, self.OnMinboxInc, id=ID_MINBOX_INC)
+        self.Bind(wx.EVT_MENU, self.OnMinboxDec, id=ID_MINBOX_DEC)
 
         # how zoomed in we are 
         self.zoomfactor = 1.0
@@ -478,6 +512,28 @@ class MyFrame(wx.Frame):
             # This really shouldn't happen with "geometric" zooming (multiplying
             # by a factor)
             print 'Cannot zoom beyond limit.'
+
+    def OnMinboxInc(self, evt):
+        '''
+        Increase minimum box size.
+        '''
+        self.scrolledwin.minboxsize = self.scrolledwin.minboxsize + 1
+        self.GetStatusBar().SetStatusText("Increased minimum box size to %d." %\
+                self.scrolledwin.minboxsize)
+
+    def OnMinboxDec(self, evt):
+        '''
+        Decrease minimum box size.
+        '''
+        if self.scrolledwin.minboxsize > 1:
+            self.scrolledwin.minboxsize = self.scrolledwin.minboxsize - 1
+            self.GetStatusBar().SetStatusText("Decreased minimum box size to %d." %\
+                self.scrolledwin.minboxsize)
+            return
+        self.GetStatusBar().SetStatusText(("Minimum box size at minimum: %d, "\
+                + "cannot decrease.") %\
+                self.scrolledwin.minboxsize)
+
 
     def OnZoomIn(self, evt):
         self.Zoom(1.1)
@@ -659,24 +715,49 @@ class MyFrame(wx.Frame):
 
     def OnLoadRects(self, event):
         '''
-        This method is depreciated.
-        fdlg = wx.FileDialog(self)
-        if fdlg.ShowModal() == wx.ID_OK:
-            print "File loaded: " + fdlg.GetPath()
-            f = open(str(fdlg.GetPath()),"r")
-            rectstr = ''
-            while True:
-                rectstr = f.readline()
-                if len(rectstr) == 0:
-                    break;
-                pos, size  = eval(rectstr.strip())
-                self.scrolledwin.panels.append(\
-                        NewPanel(self.scrolledwin,\
-                        self.scrolledwin.CalcScrolledPosition(pos),\
-                        size))
-            f.close()
+        Loads rectangles from an mei file.
+        Only loads bar boxes and not staff boxes yet.
         '''
-        pass
+
+        fdlg = wx.FileDialog(self)
+
+        if fdlg.ShowModal() == wx.ID_OK:
+            
+            print "File loaded: " + fdlg.GetPath()
+
+            meidoc = XmlImport.documentFromFile(str(fdlg.GetPath()))
+
+            # get all the measure elements
+            measures = meidoc.getElementsByName('measure')
+
+            # the measures have their coordinates stored in zones
+            zones = meidoc.getElementsByName('zone')
+
+            for m in measures:
+
+                # the id of the zone that has the coordinates is stored in 'facs'
+                facs = m.getAttribute('facs')
+
+                print facs.getName(), facs.getValue()
+
+                # there's a # sign preceding the id stored in the facs
+                # attribute, remove it
+                zone = meidoc.getElementById(facs.getValue()[1:])
+
+                # the coordinates stored in zone
+                ulx = zone.getAttribute('ulx').getValue()
+                uly = zone.getAttribute('uly').getValue()
+                lrx = zone.getAttribute('lrx').getValue()
+                lry = zone.getAttribute('lry').getValue()
+
+                print ulx, uly, lrx, lry
+
+                # make a new panel
+                self.scrolledwin.barpanels.append(\
+                        Rect(int(ulx), int(uly), int(lrx), int(lry)))
+
+            self.scrolledwin.Refresh()
+
 
     def OnClearRect(self, event):
         if self.rectmode == 'BAR':
