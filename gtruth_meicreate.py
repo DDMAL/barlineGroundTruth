@@ -85,7 +85,8 @@ class GroundTruthBarlineDataConverter:
         facsimile = MeiElement('facsimile')
         surface = MeiElement('surface')
 
-        graphic = self._create_graphic(imagepath, imagewidth, imageheight)
+        graphic = self._create_graphic(imagepath, imagewidth, imageheight,
+                imagedpi)
         surface.addChild(graphic)
 
         mei.addChild(music)
@@ -188,7 +189,7 @@ class GroundTruthBarlineDataConverter:
 
         return mei_head
 
-    def _create_graphic(self, image_path, image_width, image_height):
+    def _create_graphic(self, image_path, image_width, image_height, image_dpi):
         '''
         Create a graphic element.
         '''
@@ -197,23 +198,10 @@ class GroundTruthBarlineDataConverter:
         graphic.addAttribute('height', str(image_height))
         graphic.addAttribute('width', str(image_width))
         graphic.addAttribute('target', image_path)
+        graphic.addAttribute('resolution', str(image_dpi))
         graphic.addAttribute('unit', 'px')
 
         return graphic
-
-    def _create_graphic(self, image_path, image_width, image_height):
-        '''
-        Create a graphic element.
-        '''
-
-        graphic = MeiElement('graphic')
-        graphic.addAttribute('height', str(image_height))
-        graphic.addAttribute('width', str(image_width))
-        graphic.addAttribute('target', image_path)
-        graphic.addAttribute('unit', 'px')
-
-        return graphic
-
 
     def _create_measure(self, n, zone = None):
         '''

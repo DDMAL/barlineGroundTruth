@@ -6,6 +6,7 @@ import gtruth_meicreate
 from   gtruth_zoom import ZoomerMover
 from gtruth_sorts import *
 import gamera.core
+import math
 
 ''' Save to mei file instead of text file. Must append path to meicreate.py to
 PYTHONPATH environment variable unless this is run in the same directory as it. '''
@@ -584,8 +585,8 @@ class MyFrame(wx.Frame):
 
                 xbot, ybot = rect.GetSize()
 
-                staff_bb.append([idx, xtop, ytop,\
-                        xbot, ybot])
+                staff_bb.append([int(math.round(idx)), int(math.round(xtop)),\
+                    int(math.round(ytop)), int(math.round(xbot)), int(math.round(ybot))])
 
                 idx = idx + 1
 
@@ -604,8 +605,8 @@ class MyFrame(wx.Frame):
                 
                 xbot, ybot = rect.GetSize()
 
-                bar_bb.append((idx, xtop, ytop,\
-                        xbot, ybot))
+                bar_bb.append([int(math.round(idx)), int(math.round(xtop)),\
+                    int(math.round(ytop)), int(math.round(xbot)), int(math.round(ybot))])
 
                 idx = idx + 1
 
