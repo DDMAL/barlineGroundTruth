@@ -79,6 +79,7 @@ class Rect:
     def __init__(self,posx,posy,szx,szy):
         self.pos = (posx,posy)
         self.size = (szx,szy)
+        self.number = None
 
     def GetSize(self):
         return self.size
@@ -181,12 +182,14 @@ class MainWindow(wx.ScrolledWindow):
             dc.SetPen(wx.Pen('RED',\
                     width=3, style=wx.PENSTYLE_SOLID))
             dc.DrawRectangle(*p.GetBox())
+            # TODO: Draw bar number too
         for p in self.staffpanels:
             dc.SetBrush(wx.Brush('WHITE',\
                     style=wx.BRUSHSTYLE_TRANSPARENT))
             dc.SetPen(wx.Pen('GREEN',\
                     width=3, style=wx.PENSTYLE_SOLID))
             dc.DrawRectangle(*p.GetBox())
+            # TODO: Draw bar number too
 
     def Zoom(self, factor):
         '''
