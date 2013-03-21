@@ -588,13 +588,13 @@ class MyFrame(wx.Frame):
             self.image = gamera.core.load_image(fdlg.GetPath())
 
             # make image greyscale
-            self.image.to_greyscale()
+            self.image = self.image.to_greyscale()
 
             # binarize image
-            self.image.to_onebit()
+            self.image = self.image.to_onebit()
 
             # correct the rotation of the image
-            self.image.correct_rotation(0)
+            self.image = self.image.correct_rotation(0)
 
             # TODO: border removal could happen here too
 
