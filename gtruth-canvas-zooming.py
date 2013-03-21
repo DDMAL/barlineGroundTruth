@@ -684,6 +684,11 @@ class MyFrame(wx.Frame):
                             + "contains no bars.")
                     pass
 
+            for b in self.scrolledwin.barpanels:
+                if b.number == -1:
+                    self.GetStatusBar().SetStatusText("Warning: a bar was not "\
+                                                        + "numbered."
+
             # bar bounding boxes
             # according to a print out of the data in meicreate these are given
             # as a list of tuples, the list contiains:

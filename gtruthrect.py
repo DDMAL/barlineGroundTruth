@@ -8,11 +8,11 @@ class Rect:
     '''
     Represents a rectangle.
     '''
-    def __init__(self,posx,posy,szx,szy,num=0):
+    def __init__(self,posx,posy,szx,szy,num=-1):
         self.pos = (posx,posy)
         self.size = (szx,szy)
         self.children = []
-        self.number = 0
+        self.number = num
 
     def SetNumber(self,num):
         '''
