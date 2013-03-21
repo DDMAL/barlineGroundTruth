@@ -14,6 +14,7 @@ from gamera import classify
 from gamera import knn
 from gtruthrect import *
 from gtruthtextedit import *
+from gtruthhelp import GtruthHelpFrame
 
 # For loading meifiles
 from pymei import MeiDocument, MeiElement, XmlImport
@@ -58,7 +59,17 @@ you are in currently. This is also true for the Clear method.
 There is a minimum box size that you are allowed to draw to keep \
 you from saving some erroneous boxes. If you are finding that it \
 be too small or large, it may be adjusted using Increase Minimum \
-and decrease minimum. \
+and Decrease Minimum.
+
+You may get a warning message upon saving that some measures have \
+not been numbered. This is most likely because a measure is not \
+inside a staff bounding box. You have the option of going back \
+and ensuring all measure boxes are enclosed in staff boxes, which \
+you must do to save an accurate MEI file in the end.
+
+The text box is available for making annotations. Upon saving, its \
+contents will be saved to the file-path specified for the MEI file \
+but ending in .txt.
 
 WARNING: If you scroll while drawing a box it will mess up the top \
 corner coordinates. If you would like to draw a box larger than the \
@@ -275,7 +286,7 @@ class MainWindow(wx.ScrolledWindow):
                             unscrolledevty/self.userscale[1])
 
                 panels.append(Rect(self.leftdownorigx,\
-                        self.leftdownorigy,0,0))
+                        self.leftdownorigy,0,0,-1))
 
                 self.curpanel = panels[-1]
 
@@ -471,6 +482,9 @@ class MyFrame(wx.Frame):
         self.textwin = GtruthTextFrame(self, pos=(100,100), size=(200,400),\
             title="Gtruth Text Editor")
 
+        # help frame that will display help when requested
+        self.helpwin = None
+
         # initialize gamera so it works
         gamera.core.init_gamera()
 
@@ -512,7 +526,6 @@ class MyFrame(wx.Frame):
 
     def OnZoomOut(self, evt):
         self.Zoom(0.9)
-    ###
 
     def OnRectModeTog(self, event):
         if self.rectmode == 'BAR':
@@ -532,10 +545,8 @@ class MyFrame(wx.Frame):
         dlg.ShowModal()
 
     def OnHelp(self, event):
-        dlg = wx.MessageDialog(self, helpmess,\
-                caption="How to use Gtruth",\
-                style=(wx.OK|wx.ICON_QUESTION))
-        dlg.ShowModal()
+        self.helpwin = GtruthHelpFrame(self, pos=(200,100),\
+            text=helpmess)
     
     def OnExit(self, event):
         print "Good-bye now!"
