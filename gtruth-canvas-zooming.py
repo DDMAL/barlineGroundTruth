@@ -152,7 +152,7 @@ class MainWindow(wx.ScrolledWindow):
             dc.SetBrush(wx.Brush('WHITE',\
                     style=wx.BRUSHSTYLE_TRANSPARENT))
             dc.SetPen(wx.Pen('GREEN',\
-                    width=3.0/self.userscale[1], style=wx.PENSTYLE_SOLID))
+                    width=3.0/self.userscale[0], style=wx.PENSTYLE_SOLID))
             dc.DrawRectangle(*p.GetBox())
 
     def Zoom(self, factor):
