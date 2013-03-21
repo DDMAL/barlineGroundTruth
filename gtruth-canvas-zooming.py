@@ -55,6 +55,11 @@ depending on what mode you are in currently. Note that when \
 deleting boxes you will only delete the type of boxes whose mode \
 you are in currently. This is also true for the Clear method.
 
+There is a minimum box size that you are allowed to draw to keep \
+you from saving some erroneous boxes. If you are finding that it \
+be too small or large, it may be adjusted using Increase Minimum \
+and decrease minimum. \
+
 WARNING: If you scroll while drawing a box it will mess up the top \
 corner coordinates. If you would like to draw a box larger than the \
 screen, simply draw the box as large as you can, let go of the \
@@ -142,6 +147,40 @@ class MainWindow(wx.ScrolledWindow):
         self.Show(True)
         self.Refresh()
 
+    def _EnforceMinPanelSize(self, size):
+        # set size conditional on the minimum box size
+        if self.curpanel == None:
+            return
+        sizex, sizey = size
+        if (sizex < (self.minboxsize/self.userscale[0])) | (sizey <
+                (self.minboxsize/self.userscale[1])):
+            self.curpanel.SetSize((self.minboxsize/self.userscale[0],\
+                     self.minboxsize/self.userscale[1]))
+        else:
+            self.curpanel.SetSize(size)
+
+    def _HandleBoxDrawingMotion(self, x0, y0):
+        # Some logic to handle all start and end drawing motions
+        if x0 > self.leftdownorigx:
+            if y0 > self.leftdownorigy:
+                pos = (self.leftdownorigx, self.leftdownorigy)
+                size = (x0 - self.leftdownorigx,\
+                        y0 - self.leftdownorigy)
+            else:
+                pos = (self.leftdownorigx, y0)
+                size = (x0 - self.leftdownorigx,
+                        self.leftdownorigy - y0)
+        else:
+            if y0 > self.leftdownorigy:
+                pos = (x0,self.leftdownorigy)
+                size = (self.leftdownorigx - x0,\
+                        y0 - self.leftdownorigy)
+            else:
+                pos = (x0, y0)
+                size = (self.leftdownorigx - x0,\
+                        self.leftdownorigy - y0)
+        return (pos,size)
+
     def OnPaint(self, evt):
         dc = wx.PaintDC(self)
         self.PrepareDC(dc)
@@ -199,17 +238,17 @@ class MainWindow(wx.ScrolledWindow):
             unscrolledevtx, unscrolledevty = \
                 self.CalcUnscrolledPosition(evt.GetPosition())
 
-            sys.stderr.write("Event position: (%d,%d)\n" % (evtx,evty)
-                    + "\tScrolled Position(%d,%d)\n" % \
-                            (scrolledevtx,scrolledevty)
-                    + "\tUnscrolled Position(%d,%d)\n" % \
-                            (unscrolledevtx,unscrolledevty))
+#            sys.stderr.write("Event position: (%d,%d)\n" % (evtx,evty)
+#                    + "\tScrolled Position(%d,%d)\n" % \
+#                            (scrolledevtx,scrolledevty)
+#                + "\tUnscrolled Position(%d,%d)\n" % \
+#                            (unscrolledevtx,unscrolledevty))
 
             vsx, vsy = self.GetViewStart()
 
             spux, spuy = self.GetScrollPixelsPerUnit()
-            sys.stderr.write("View Start: (%d,%d)\n"%\
-                    (vsx * spux, vsy * spuy))
+#            sys.stderr.write("View Start: (%d,%d)\n"%\
+#                    (vsx * spux, vsy * spuy))
 
             self.leftdown = True 
 
@@ -294,32 +333,10 @@ class MainWindow(wx.ScrolledWindow):
             x0, y0 = (unscrolledevtx/self.userscale[0],\
                         unscrolledevty/self.userscale[1])
 
-            # Some logic to handle all start and end drawing motions
-            if x0 > self.leftdownorigx:
-                if y0 > self.leftdownorigy:
-                    pos = (self.leftdownorigx, self.leftdownorigy)
-                    size = (x0 - self.leftdownorigx,\
-                            y0 - self.leftdownorigy)
-                else:
-                    pos = (self.leftdownorigx, y0)
-                    size = (x0 - self.leftdownorigx,
-                            self.leftdownorigy - y0)
-            else:
-                if y0 > self.leftdownorigy:
-                    pos = (x0,self.leftdownorigy)
-                    size = (self.leftdownorigx - x0,\
-                            y0 - self.leftdownorigy)
-                else:
-                    pos = (x0, y0)
-                    size = (self.leftdownorigx - x0,\
-                            self.leftdownorigy - y0)
+            pos, size = self._HandleBoxDrawingMotion(x0, y0)
 
             # set size conditional on the minimum box size
-            sizex, sizey = size
-            if (sizex < self.minboxsize) | (sizey < self.minboxsize):
-                self.curpanel.SetSize((self.minboxsize,self.minboxsize))
-            else:
-                self.curpanel.SetSize(size)
+            self._EnforceMinPanelSize(size)
 
             self.curpanel.SetPosition(pos)
 
@@ -342,34 +359,12 @@ class MainWindow(wx.ScrolledWindow):
 
             curx, cury = self.curpanel.GetPosition()
 
-            # Some logic to handle all start and end drawing motions
-            if x0 > self.leftdownorigx:
-                if y0 > self.leftdownorigy:
-                    pos = (self.leftdownorigx, self.leftdownorigy)
-                    size = (x0 - self.leftdownorigx,\
-                            y0 - self.leftdownorigy)
-                else:
-                    pos = (self.leftdownorigx, y0)
-                    size = (x0 - self.leftdownorigx,
-                            self.leftdownorigy - y0)
-            else:
-                if y0 > self.leftdownorigy:
-                    pos = (x0,self.leftdownorigy)
-                    size = (self.leftdownorigx - x0,\
-                            y0 - self.leftdownorigy)
-                else:
-                    pos = (x0, y0)
-                    size = (self.leftdownorigx - x0,\
-                            self.leftdownorigy - y0)
+            pos, size = self._HandleBoxDrawingMotion(x0, y0)
 
             self.leftdown = False
             
             # set size conditional on the minimum allowed size
-            sizex, sizey = size
-            if (sizex < self.minboxsize) | (sizey < self.minboxsize):
-                self.curpanel.SetSize((self.minboxsize,self.minboxsize))
-            else:
-                self.curpanel.SetSize(size)
+            self._EnforceMinPanelSize(size)
 
             self.curpanel.SetPosition(pos)
             self.curpanel = None
@@ -644,7 +639,11 @@ class MyFrame(wx.Frame):
                 # Find rectangle that tightly bounds the rectangles inside of
                 # it.
 
-                brect = get_bounding_rect(children)
+                try:
+                    brect = get_bounding_rect(children)
+                except ValueError:
+                    print "Tried to get bounding rectangle of empty list."
+                    continue
 
                 # Set its children to the bounded rects
                 
@@ -687,7 +686,16 @@ class MyFrame(wx.Frame):
             for b in self.scrolledwin.barpanels:
                 if b.number == -1:
                     self.GetStatusBar().SetStatusText("Warning: a bar was not "\
-                                                        + "numbered."
+                                                        + "numbered.")
+                    warningdlg = wx.MessageDialog(self,\
+                            message="Warning: a bar was not numbered. Would "\
+                            + "you like to go back to correct this?",\
+                            caption="A bar was not numbered.",\
+                            style=(wx.YES_NO))
+                    if warningdlg.ShowModal() == wx.ID_YES:
+                        self.GetStatusBar().SetStatusText('Saving aborted.')
+                        return
+
 
             # bar bounding boxes
             # according to a print out of the data in meicreate these are given
