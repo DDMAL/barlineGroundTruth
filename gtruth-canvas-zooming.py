@@ -12,6 +12,8 @@ from gamera.toolkits import musicstaves, lyric_extraction, border_removal
 from gamera.classify import BoundingBoxGroupingFunction, ShapedGroupingFunction
 from gamera import classify
 from gamera import knn
+from gtruthrect import *
+from gtruthtextedit import *
 
 # For loading meifiles
 from pymei import MeiDocument, MeiElement, XmlImport
@@ -71,35 +73,6 @@ ID_ZOOM_IN          = wx.ID_HIGHEST + 4
 ID_ZOOM_OUT         = wx.ID_HIGHEST + 5
 ID_MINBOX_INC       = wx.ID_HIGHEST + 6
 ID_MINBOX_DEC       = wx.ID_HIGHEST + 7
-
-class Rect:
-    '''
-    Represents a rectangle.
-    '''
-    def __init__(self,posx,posy,szx,szy):
-        self.pos = (posx,posy)
-        self.size = (szx,szy)
-
-    def GetSize(self):
-        return self.size
-
-    def GetPosition(self):
-        return self.pos
-
-    def GetArea(self):
-        return self.size[0] * self.size[1]
-
-    def SetSize(self,size):
-        self.size = size
-
-    def SetPosition(self,pos):
-        self.pos = pos
-
-    def GetBox(self):
-        '''
-        returns tuple as (posx, posy, sizex, sizey)
-        '''
-        return (self.pos[0], self.pos[1], self.size[0], self.size[1])
 
 class MyApp(wx.App):
     '''
@@ -428,8 +401,6 @@ class MyFrame(wx.Frame):
         filemenu.Append(wx.ID_OPEN, "O&pen\tAlt-O", "Open a picture for "\
                                         +"annotating")
 
-        # clear the rectangles
-        filemenu.Append(wx.ID_CLEAR, "C&lear", "Clear all rectangles")
 
         # save the rectangle state
         filemenu.Append(wx.ID_SAVE, "S&ave\tShift-Alt-S",\
@@ -448,6 +419,8 @@ class MyFrame(wx.Frame):
         # entries for increasing and decreasing the minimum box size
         filemenu.Append(ID_MINBOX_INC, "Increase minimum\tAlt->",\
                 "Increase minimum box size")
+        # clear the rectangles
+        filemenu.Append(wx.ID_CLEAR, "C&lear", "Clear all rectangles")
         filemenu.Append(ID_MINBOX_DEC, "Decrease minimum\tAlt-<",\
                 "Decrease minimum box size")
 
@@ -498,6 +471,10 @@ class MyFrame(wx.Frame):
 
         # child window that is the window containing all the elements
         self.scrolledwin = MainWindow(self)
+
+        # child window containing the text box
+        self.textwin = GtruthTextFrame(self, pos=(100,100), size=(200,400),\
+            title="Gtruth Text Editor")
 
         # initialize gamera so it works
         gamera.core.init_gamera()
@@ -658,40 +635,63 @@ class MyFrame(wx.Frame):
 
             staff_bb = []
 
-            idx = 1 # TODO: Maybe we have to number the boxes differently
+            idx = 1 # TODO: Maybe we have to number the staves differently
             for rect in self.scrolledwin.staffpanels:
 
-                xtop, ytop = rect.GetPosition()
+                # Find the rectangles this rectangle bounds
+                children = rect.GetRectsInBounds(self.scrolledwin.barpanels)
 
-                xbot, ybot = rect.GetSize()
+                # Find rectangle that tightly bounds the rectangles inside of
+                # it.
 
-                staff_bb.append([int(round(idx)), int(round(xtop)),\
-                    int(round(ytop)), int(round(xbot)), int(round(ybot))])
+                brect = get_bounding_rect(children)
+
+                # Set its children to the bounded rects
+                
+                brect.SetChildren(children)
+                brect.SetNumber(idx) # Identify the staff with a number, not
+                                     # really important right now
+
+                # We don't use FindChildren because I'm worried some children
+                # might be missing after resizing (this is a stupid worry) but
+                # also due to the order of how this saving is carried out
+
+                # Then save this rect
+
+                xtop, ytop = brect.GetPosition()
+
+                xbot, ybot = brect.GetSize()
+
+                staff_bb.append(brect)
 
                 idx = idx + 1
+
+            # Sort the staves by upper left hand y coordinate and their children
+            # by upper left hand x coordinate so that they may be accurately
+            # numbered
+            staff_bb.sort(key=lambda c: c.pos[1])
+            idx = 1
+            for rect in staff_bb:
+                rect.children.sort(key=lambda c: c.pos[0])
+                # assuming no bars belonging to multiple staves, they may now be
+                # numbered
+                try:
+                    for c in rect.children:
+                        c.SetNumber(idx)
+                        idx = idx + 1
+                except TypeError:
+                    self.GetStatusBar().SetStatusText("Warning: a staff "\
+                            + "contains no bars.")
+                    pass
 
             # bar bounding boxes
             # according to a print out of the data in meicreate these are given
             # as a list of tuples, the list contiains:
             # (staffnumber, topcorner x, topcorner y, bottom corner x, bottom
             # corner y)
-            bar_bb = []
-
-            idx = 1 # TODO: Maybe we have to number the boxes differently
-
-            for rect in self.scrolledwin.barpanels:
-
-                xtop, ytop = rect.GetPosition()
-                
-                xbot, ybot = rect.GetSize()
-
-                bar_bb.append([int(round(idx)), int(round(xtop)),\
-                    int(round(ytop)), int(round(xbot)), int(round(ybot))])
-
-                idx = idx + 1
 
             barconverter = gtruth_meicreate.GroundTruthBarlineDataConverter(\
-                    staff_bb, bar_bb, True)
+                    staff_bb, self.scrolledwin.barpanels, True)
 
             if self.scrolledwin.bmp != None:
 
@@ -700,8 +700,8 @@ class MyFrame(wx.Frame):
                 height = self.scrolledwin.bmp.GetHeight()
 
             if self.image == None:
-                self.GetStatusBar().SetStatusText("No image file loaded, saving\
-                        aborted.")
+                self.GetStatusBar().SetStatusText('No image file loaded, '\
+                        + 'saving aborted.')
                 return
             else:
                 dpi = self.image.resolution
@@ -710,8 +710,12 @@ class MyFrame(wx.Frame):
                     width, height, dpi) # using default dpi
 
             barconverter.output_mei(str(fdlg.GetPath()))
+            fname = fdlg.GetPath()
+            fname = fname[:fname.rfind('.mei')] + ".txt"
 
-            self.GetStatusBar().SetStatusText("Saved to: " + fdlg.GetPath())
+            self.textwin.SaveText(fname)
+            self.GetStatusBar().SetStatusText(("MEI saved to: %s. " +\
+                    "Text saved to: %s") % (fdlg.GetPath(), fname))
 
     def OnLoadRects(self, event):
         '''
@@ -771,6 +775,7 @@ class MyFrame(wx.Frame):
         while len(panels) > 0:
             rect = panels.pop()
             del(rect)
+        self.scrolledwin.Refresh()
 
 app = MyApp()
 app.MainLoop()

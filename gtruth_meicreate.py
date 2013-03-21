@@ -17,6 +17,8 @@ import datetime
 
 from pymei import MeiDocument, MeiElement, XmlExport
 
+from gtruthrect import *
+
 class GroundTruthBarlineDataConverter:
     '''
     Convert the stored measures of the Ground Truth System to MEI.
@@ -26,6 +28,9 @@ class GroundTruthBarlineDataConverter:
     def __init__(self, staffbb, barbb, verbose=False):
         '''
         Constructor of converter.
+        staffbb are the boxes bouding the staves (or systems)
+        barbb are the boxes bounding the measures (or bars)
+        These are passed in as lists of Rects defined in gtruth-rect
         '''
 
         # Print errors / messages
@@ -99,18 +104,27 @@ class GroundTruthBarlineDataConverter:
         score.addChild(score_def)
         score.addChild(section)
 
-        # It only considers bar panels for now
+        barmeasdict = dict()
+
+        # Only add the bar bounding boxes
         for bar in self.barbb:
             # Zone is the coordinates where the measure is found in the image
-            zone = self._create_zone(bar[1],bar[2],bar[3],bar[4]);
+            zone = self._create_zone(\
+                    bar.pos[0],bar.pos[1],bar.pos[0]+bar.size[0],\
+                    bar.pos[1]+bar.size[1]);
             # Zone is a child element of the surface
             surface.addChild(zone)
             # The measure is found in the zone
-            # TODO: The ordering of the bars has not yet been taken into
-            # consideration
-            measure = self._create_measure(bar[0],zone);
+            measure = self._create_measure(bar.number,zone);
             section.addChild(measure);
-            
+            # store which measure this bar corresponds to so we can add it as a
+            # child to the staff bounding boxes later TODO: We don't do this
+            # right now
+            barmeasdict[bar] = measure
+
+        # Add the staff bounding boxes
+        # We don't do this but when we do, the staff needs to look up its
+        # children in barmeasdict
 
     def _create_header(self, rodan_version='0.1'):
         '''
