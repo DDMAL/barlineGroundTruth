@@ -564,7 +564,7 @@ class MyFrame(wx.Frame):
                 style = (wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT))
 
         # Suggest a filename based on the image name
-        fdlg.SetFilename(os.path.basename(self.curpicfilename) + "_boxes.mei")
+        fdlg.SetFilename(os.path.basename(self.curpicfilename) + ".mei")
 
         xoffset, yoffset = self.scrolledwin.CalcUnscrolledPosition(0,0)
 
