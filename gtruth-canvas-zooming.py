@@ -15,6 +15,8 @@ from gamera import knn
 from gtruthrect import *
 from gtruthtextedit import *
 from gtruthhelp import GtruthHelpFrame, helpmess
+import os.path
+import tempfile
 
 # For loading meifiles
 from pymei import MeiDocument, MeiElement, XmlImport
@@ -193,17 +195,9 @@ class MainWindow(wx.ScrolledWindow):
             unscrolledevtx, unscrolledevty = \
                 self.CalcUnscrolledPosition(evt.GetPosition())
 
-#            sys.stderr.write("Event position: (%d,%d)\n" % (evtx,evty)
-#                    + "\tScrolled Position(%d,%d)\n" % \
-#                            (scrolledevtx,scrolledevty)
-#                + "\tUnscrolled Position(%d,%d)\n" % \
-#                            (unscrolledevtx,unscrolledevty))
-
             vsx, vsy = self.GetViewStart()
 
             spux, spuy = self.GetScrollPixelsPerUnit()
-#            sys.stderr.write("View Start: (%d,%d)\n"%\
-#                    (vsx * spux, vsy * spuy))
 
             self.leftdown = True 
 
@@ -539,8 +533,11 @@ class MyFrame(wx.Frame):
 
                 self.curpicfilename = fname
 
+            print "Current picture file name:", self.curpicfilename
+
             # path to preprocessed image version
-            ppimagepath = self.curpicfilename + '_preprocessed.tiff'
+            tempimage = tempfile.NamedTemporaryFile()
+            ppimagepath = tempimage.name
 
             self.image.save_tiff(ppimagepath)
 
@@ -550,8 +547,6 @@ class MyFrame(wx.Frame):
             # a string to print status to
             statusstr = "File loaded: %s, resolution %d dpi" % \
                     (ppimagepath, self.image.resolution)
-
-            self.curpicfilename = fdlg.GetFilename()
 
             self.scrolledwin.maxWidth = bmp.GetWidth()
 
@@ -569,7 +564,7 @@ class MyFrame(wx.Frame):
                 style = (wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT))
 
         # Suggest a filename based on the image name
-        fdlg.SetFilename(self.curpicfilename + "_boxes.mei")
+        fdlg.SetFilename(os.path.basename(self.curpicfilename) + "_boxes.mei")
 
         xoffset, yoffset = self.scrolledwin.CalcUnscrolledPosition(0,0)
 

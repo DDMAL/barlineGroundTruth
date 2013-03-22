@@ -110,8 +110,9 @@ class GroundTruthBarlineDataConverter:
         for bar in self.barbb:
             # Zone is the coordinates where the measure is found in the image
             zone = self._create_zone(\
-                    bar.pos[0],bar.pos[1],bar.pos[0]+bar.size[0],\
-                    bar.pos[1]+bar.size[1]);
+                    int(bar.pos[0]),int(bar.pos[1]),\
+                    int(bar.pos[0])+int(bar.size[0]),\
+                    int(bar.pos[1])+int(bar.size[1]));
             # Zone is a child element of the surface
             surface.addChild(zone)
             # The measure is found in the zone
