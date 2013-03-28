@@ -56,6 +56,9 @@ class MainWindow(wx.ScrolledWindow):
         wx.ScrolledWindow.__init__(self, parent, size=(500,500))
         self.parent = parent
 
+        # background must be set to wx.BG_STYLE_CUSTOM when using buffered paint
+        self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
+
         # background when no image loaded
         parent.SetBackgroundColour('WHITE')
 
@@ -139,22 +142,26 @@ class MainWindow(wx.ScrolledWindow):
         return (pos,size)
 
     def OnPaint(self, evt):
-        dc = wx.PaintDC(self)
+#        dc = wx.PaintDC(self)
+        dc = wx.BufferedPaintDC(self) #perhaps draws more quickly? (without
+        # flicker)
         self.PrepareDC(dc)
+        # the wx docs said not to call self.PrepareDC but when I didn't, it
+        # didn't work
         dc.SetUserScale(*self.userscale)
         if self.bmp != None:
             dc.DrawBitmap(self.bmp, 0, 0, True)
         for p in self.barpanels:
             dc.SetBrush(wx.Brush('WHITE',\
-                    style=wx.BRUSHSTYLE_TRANSPARENT))
+                    style=wx.TRANSPARENT))
             dc.SetPen(wx.Pen('RED',\
-                    width=3.0/self.userscale[0], style=wx.PENSTYLE_SOLID))
+                    width=3.0/self.userscale[0], style=wx.SOLID))
             dc.DrawRectangle(*p.GetBox())
         for p in self.staffpanels:
             dc.SetBrush(wx.Brush('WHITE',\
-                    style=wx.BRUSHSTYLE_TRANSPARENT))
+                    style=wx.TRANSPARENT))
             dc.SetPen(wx.Pen('GREEN',\
-                    width=3.0/self.userscale[0], style=wx.PENSTYLE_SOLID))
+                    width=3.0/self.userscale[0], style=wx.SOLID))
             dc.DrawRectangle(*p.GetBox())
 
     def Zoom(self, factor):
