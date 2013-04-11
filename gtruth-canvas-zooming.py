@@ -142,8 +142,8 @@ class MainWindow(wx.ScrolledWindow):
         return (pos,size)
 
     def OnPaint(self, evt):
-#        dc = wx.PaintDC(self)
-        dc = wx.BufferedPaintDC(self) #perhaps draws more quickly? (without
+        dc = wx.PaintDC(self)
+#        dc = wx.BufferedPaintDC(self) #perhaps draws more quickly? (without
         # flicker)
         self.PrepareDC(dc)
         # the wx docs said not to call self.PrepareDC but when I didn't, it
@@ -718,16 +718,18 @@ class MyFrame(wx.Frame):
                 zone = meidoc.getElementById(facs.getValue()[1:])
 
                 # the coordinates stored in zone
-                ulx = zone.getAttribute('ulx').getValue()
-                uly = zone.getAttribute('uly').getValue()
-                lrx = zone.getAttribute('lrx').getValue()
-                lry = zone.getAttribute('lry').getValue()
+                ulx = int(zone.getAttribute('ulx').getValue())
+                uly = int(zone.getAttribute('uly').getValue())
+                lrx = int(zone.getAttribute('lrx').getValue())
+                lry = int(zone.getAttribute('lry').getValue())
 
                 print ulx, uly, lrx, lry
 
                 # make a new panel
+                # Rect is looking for top (x,y) coordinates and length and
+                # height, so we need to subtract the two corners
                 self.scrolledwin.barpanels.append(\
-                        Rect(int(ulx), int(uly), int(lrx), int(lry)))
+                        Rect(ulx, uly, lrx - ulx, lry - uly))
 
             self.scrolledwin.Refresh()
 
